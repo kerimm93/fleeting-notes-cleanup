@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log-Synthesizer v2 (mit Regeln)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; background: #1e1e1e; color: #e0e0e0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { color: #bb86fc; }
+        textarea { width: 100%; height: 150px; border: 1px solid #333; background: #2d2d2d; color: #fff; border-radius: 8px; padding: 10px; font-family: monospace; }
+        .card { background: #2d2d2d; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border-left: 6px solid #444; }
+        .card-Poetry { border-left-color: #ff79c6; }
+        .card-Proto { border-left-color: #8be9fd; }
+        .card-SOP { border-left-color: #50fa7b; }
+        .card-Rezept { border-left-color: #ffb86c; }
+        .controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+        select, input { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #3d3d3d; color: white; }
+        .content-edit { width: 100%; min-height: 100px; margin-top: 10px; border: 1px solid #444; background: #1e1e1e; color: #dcdcdc; padding: 10px; border-radius: 4px; }
+        .actions { margin-top: 30px; position: sticky; bottom: 0; background: #1e1e1e; padding: 20px 0; border-top: 2px solid #333; text-align: center; }
+        button { padding: 12px 24px; cursor: pointer; background: #6200ee; color: white; border: none; border-radius: 5px; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #3700b3; }
+        button.delete { background: #cf6679; padding: 6px 12px; }
+        .hidden { display: none; }
+        #copyStatus { margin-left: 15px; color: #03dac6; font-weight: bold; }
+        .badge { font-size: 0.8em; padding: 2px 6px; border-radius: 4px; background: #444; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Log-Synthesizer v2</h1>
+    <p>1. ChatGPT-Rohmaterial hier einfügen:</p>
+    <textarea id="rawInput" placeholder="## Proto-Atomic Notes..."></textarea>
+    <br><br>
+    <button onclick="parseLog()">Karten generieren</button>
+
+    <div id="board" style="margin-top: 30px;"></div>
+
+    <div id="exportArea" class="hidden actions">
+        <button onclick="generatePrompt()">Finalen Prompt + Regeln kopieren</button>
+        <div id="copyStatus"></div>
+    </div>
+</div>
+
+<script>
+    let logItems = [];
+
+    const RULES_TEMPLATE = `
+**KRITISCH — Extraktions-Regeln:**
+
+**Poetry-Freewriting:**
+- Ausschließlich wortwörtlich aus deinen Formulierungen
+- Nichts ergänzen, umformulieren oder interpretieren
+- Chat erfindet NIEMALS poetische Inhalte
+
+**Proto-Atomic Notes:**
+- Dürfen synthetisiert und zusammengefasst werden, nah an Originalworten
+- Dürfen [[Verweise]] auf andere Notes enthalten
+
+**Rezepte:**
+- SO DETAILLIERT wie möglich (Mengen in g/ml, Temperaturen, Zeiten)
+- Echte Erfahrungen: Was klappte gut/schlecht? Tipps & Hacks.
+- Lagerung & Haltbarkeit erfassen
+
+**SOPs:**
+- Ziel: Klarheit & Wiederholbarkeit
+- Inklusive Mermaid-Diagramm des Ablaufs
+
+**Node-Tags:**
+- Jede Node braucht das Tag (z.B. #proto-atomic) direkt UNTER der Überschrift.`;
+
+    function parseLog() {
+        const text = document.getElementById('rawInput').value;
+        const lines = text.split('\n');
+        logItems = [];
+        let currentType = 'Proto';
+
+        lines.forEach(line => {
+            if (line.includes('## Poetry')) currentType = 'Poetry';
+            else if (line.includes('## Proto-Atomic')) currentType = 'Proto';
+            else if (line.includes('## SOPs') || line.includes('Prozesse')) currentType = 'SOP';
+            else if (line.includes('Rezept')) currentType = 'Rezept';
+            
+            if (line.trim().startsWith('- ')) {
+                let content = line.replace('- ', '').trim();
+                let title = "";
+                
+                const titleMatch = content.match(/\[(.*?)\]/);
+                if (titleMatch) {
+                    title = titleMatch[1];
+                    content = content.replace(`[${title}]`, '').replace(/^—\s*/, '').trim();
+                }
+
+                logItems.push({
+                    id: Date.now() + Math.random(),
+                    type: currentType,
+                    title: title || "Neuer Eintrag",
+                    text: content
+                });
+            }
+        });
+        renderBoard();
+    }
+
+    function renderBoard() {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+        logItems.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = `card card-${item.type}`;
+            card.innerHTML = `
+                <div class="controls">
+                    <select onchange="updateItem(${index}, 'type', this.value); renderBoard();">
+                        <option value="Poetry" ${item.type === 'Poetry' ? 'selected' : ''}>Poetry</option>
+                        <option value="Proto" ${item.type === 'Proto' ? 'selected' : ''}>Proto-Note</option>
+                        <option value="SOP" ${item.type === 'SOP' ? 'selected' : ''}>SOP</option>
+                        <option value="Rezept" ${item.type === 'Rezept' ? 'selected' : ''}>Rezept</option>
+                    </select>
+                    <input type="text" style="flex-grow:1" value="${item.title}" placeholder="Titel" oninput="updateItem(${index}, 'title', this.value)">
+                    <button class="delete" onclick="removeItem(${index})">Löschen</button>
+                </div>
+                <textarea class="content-edit" oninput="updateItem(${index}, 'text', this.value)">${item.text}</textarea>
+            `;
+            board.appendChild(card);
+        });
+        if(logItems.length > 0) document.getElementById('exportArea').classList.remove('hidden');
+    }
+
+    function updateItem(index, key, value) {
+        logItems[index][key] = value;
+    }
+
+    function removeItem(index) {
+        logItems.splice(index, 1);
+        renderBoard();
+    }
+
+    function generatePrompt() {
+        let output = "Bitte beachte dabei\n\n# 📎 Zu extrahierende Notizen\n\n";
+        
+        logItems.forEach(item => {
+            if (item.type === 'Poetry') {
+                output += `## Poetry Freewriting\n#poetry_freewriting\n${item.text}\n\n`;
+            } else if (item.type === 'Proto') {
+                output += `## Proto-Atomic Note [${item.title}]\n#proto-atomic\n${item.text}\n\n`;
+            } else if (item.type === 'SOP') {
+                output += `## Standard Operating Procedure (SOP) [${item.title}]\n#sop\n${item.text}\n\n### Ablauf-Diagramm\n\n\`\`\`mermaid\nflowchart TD\nA[Start] --> B[Schritt 1]\n\`\`\`\n\n`;
+            } else if (item.type === 'Rezept') {
+                output += `## Rezept: [${item.title}]\n#rezept\n**Beschreibung & Kontext:** ${item.text}\n\n**Zutaten:**\n- \n\n**Zubereitung:**\n1. \n\n**Meine Erfahrungen & Anpassungen:**\n- ✅ Was gut war:\n- ❌ Fehler:\n\n**Lagerung:** \n\n`;
+            }
+        });
+
+        output += RULES_TEMPLATE;
+
+        navigator.clipboard.writeText(output).then(() => {
+            const status = document.getElementById('copyStatus');
+            status.innerText = "Prompt inkl. Regeln kopiert! Ab zu ChatGPT.";
+            setTimeout(() => status.innerText = "", 4000);
+        });
+    }
+</script>
+
+</body>
+</html>
