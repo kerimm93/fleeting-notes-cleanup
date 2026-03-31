@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log-Synthesizer v2 (mit Regeln)</title>
+    <title>Log-Synthesizer v4 (Dual Scan)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; background: #1e1e1e; color: #e0e0e0; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
-        h1 { color: #bb86fc; }
-        textarea { width: 100%; height: 150px; border: 1px solid #333; background: #2d2d2d; color: #fff; border-radius: 8px; padding: 10px; font-family: monospace; }
+        h1 { color: #bb86fc; margin-bottom: 5px; }
+        .step-box { background: #252525; border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        h3 { margin-top: 0; color: #03dac6; }
+        textarea { width: 100%; height: 120px; border: 1px solid #333; background: #2d2d2d; color: #fff; border-radius: 8px; padding: 10px; font-family: monospace; }
         .card { background: #2d2d2d; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border-left: 6px solid #444; }
         .card-Poetry { border-left-color: #ff79c6; }
         .card-Proto { border-left-color: #8be9fd; }
@@ -16,59 +18,136 @@
         .card-Rezept { border-left-color: #ffb86c; }
         .controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
         select, input { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #3d3d3d; color: white; }
-        .content-edit { width: 100%; min-height: 100px; margin-top: 10px; border: 1px solid #444; background: #1e1e1e; color: #dcdcdc; padding: 10px; border-radius: 4px; }
+        .content-edit { width: 100%; min-height: 80px; margin-top: 10px; border: 1px solid #444; background: #1e1e1e; color: #dcdcdc; padding: 10px; border-radius: 4px; }
         .actions { margin-top: 30px; position: sticky; bottom: 0; background: #1e1e1e; padding: 20px 0; border-top: 2px solid #333; text-align: center; }
-        button { padding: 12px 24px; cursor: pointer; background: #6200ee; color: white; border: none; border-radius: 5px; font-weight: bold; transition: 0.2s; }
+        button { padding: 12px 20px; cursor: pointer; background: #6200ee; color: white; border: none; border-radius: 5px; font-weight: bold; transition: 0.2s; }
         button:hover { background: #3700b3; }
+        button.secondary { background: #03dac6; color: #000; }
+        button.secondary:hover { background: #01b09b; }
         button.delete { background: #cf6679; padding: 6px 12px; }
         .hidden { display: none; }
-        #copyStatus { margin-left: 15px; color: #03dac6; font-weight: bold; }
-        .badge { font-size: 0.8em; padding: 2px 6px; border-radius: 4px; background: #444; }
+        .status-msg { color: #03dac6; font-size: 0.9em; margin-top: 5px; min-height: 1.2em; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Log-Synthesizer v2</h1>
-    <p>1. ChatGPT-Rohmaterial hier einfügen:</p>
-    <textarea id="rawInput" placeholder="## Proto-Atomic Notes..."></textarea>
-    <br><br>
-    <button onclick="parseLog()">Karten generieren</button>
+    <h1>Log-Synthesizer v4</h1>
+    <p style="opacity: 0.7;">Interface zwischen Daily Log und Obsidian mit Format-Korrektur.</p>
 
-    <div id="board" style="margin-top: 30px;"></div>
+    <div class="step-box">
+        <h3>Schritt 1: Prompt an ChatGPT schicken</h3>
+        <p>Wähle aus, welchen Prompt du kopieren möchtest:</p>
+        <div class="btn-group">
+            <button onclick="copyPrompt('scan')">📋 1a. Normalen Neuscan anfordern</button>
+            <button class="secondary" onclick="copyPrompt('fix')">🛠️ 1b. Format-Korrektur anfordern</button>
+        </div>
+        <div id="promptStatus" class="status-msg"></div>
+    </div>
+
+    <div class="step-box">
+        <h3>Schritt 2: Ergebnisse verarbeiten</h3>
+        <p>Füge hier den Codeblock (Rohmaterial) aus ChatGPT ein:</p>
+        <textarea id="rawInput" placeholder="## Proto-Atomic Notes..."></textarea>
+        <br><br>
+        <button class="secondary" onclick="parseLog()">🗂️ Karten generieren</button>
+    </div>
+
+    <div id="board"></div>
 
     <div id="exportArea" class="hidden actions">
-        <button onclick="generatePrompt()">Finalen Prompt + Regeln kopieren</button>
-        <div id="copyStatus"></div>
+        <button onclick="generatePrompt()">🚀 2. Finalen Prompt + Regeln kopieren</button>
+        <div id="copyStatus" class="status-msg"></div>
     </div>
 </div>
 
 <script>
     let logItems = [];
 
+    // Prompt für den ganz normalen Neuscan
+    const SCAN_PROMPT = `**Rolle:**
+Du bist mein **forensischer Tageslog-Scanner**.
+Dein einziges Ziel ist **Vollständigkeit**, nicht Eleganz.
+
+**Normative Basis:**
+- CONFIG.md ist geladen und bindend.
+- Datenintegrität > Struktur > Extraktion.
+- Nichts implizieren. Nichts glätten. Nichts auslassen.
+
+---
+## 🎯 ZIEL DES SCANS
+Finde **alles**, was sich **potenziell** für eine spätere Weiterverarbeitung eignet... (u.a. Poetry, Proto-Atomic Notes, SOPs, Systembeobachtungen, Zitate)
+👉 **Es geht NICHT um Entscheidung oder Qualität, sondern um Sichtbarmachung.**
+
+---
+## 🔎 SCAN-REGELN (KRITISCH)
+1. Chronologisch, Nachricht für Nachricht (User & Assistant)
+2. Maximal inklusiv (Unsicherheit mit '(unsicher)' markieren)
+3. Keine Filter, Keine Aufgaben.
+4. Poetry / Prosa wortwörtlich übernehmen.
+
+---
+## 📦 AUSGABEFORMAT (VERPFLICHTEND)
+Genau EIN Markdown-Codeblock. Kein Text davor oder danach.
+... (Struktur: Poetry, Proto-Atomic, SOPs, Systembeobachtungen, Zitate)`;
+
+    // Neuer Prompt für die Format-Korrektur
+    const FIX_PROMPT = `Deine letzte Ausgabe war strukturell nicht ganz stimmig oder hat das geforderte Format verletzt. 
+Bitte korrigiere das jetzt und gib mir die erkannten Kandidaten EXAKT nach den Regeln des Ausgabeformats aus.
+
+**Regeln:**
+1. Keine Einleitung, kein Text danach.
+2. Genau EIN zusammenhängender Markdown-Codeblock.
+3. Jeder Eintrag als Spiegelstrich mit "- [Titel] — Beschreibung (Quelle: ...) (sicher/unsicher)"
+
+Hier ist die gewünschte Struktur für den Codeblock:
+\`\`\`markdown
+# 📎 MAXIMAL-INKLUSIVER NEUSCAN — ROHMATERIAL
+
+## Poetry / Prosa Freewriting (Kandidaten)
+- „…“ (Quelle: …) (sicher/unsicher)
+
+## Proto-Atomic Notes (Kandidaten)
+- [Titelvorschlag] — Kernaussage in 1 Satz  
+  (Quelle: …) (sicher/unsicher)
+
+## SOPs / Prozesse / Workflows (Kandidaten)
+- [SOP-Titel] — Ziel / Problem  
+  (Quelle: …) (sicher/unsicher)
+\`\`\`
+
+Bitte korrigiere deine letzte Antwort entsprechend!`;
+
     const RULES_TEMPLATE = `
 **KRITISCH — Extraktions-Regeln:**
 
 **Poetry-Freewriting:**
-- Ausschließlich wortwörtlich aus deinen Formulierungen
-- Nichts ergänzen, umformulieren oder interpretieren
-- Chat erfindet NIEMALS poetische Inhalte
+- Ausschließlich wortwörtlich aus deinen Formulierungen.
+- Nichts ergänzen, umformulieren oder interpretieren.
 
 **Proto-Atomic Notes:**
-- Dürfen synthetisiert und zusammengefasst werden, nah an Originalworten
-- Dürfen [[Verweise]] auf andere Notes enthalten
+- Dürfen synthetisiert werden, nah an Originalworten.
+- [[Verweise]] möglich.
 
 **Rezepte:**
-- SO DETAILLIERT wie möglich (Mengen in g/ml, Temperaturen, Zeiten)
-- Echte Erfahrungen: Was klappte gut/schlecht? Tipps & Hacks.
-- Lagerung & Haltbarkeit erfassen
+- SO DETAILLIERT wie möglich (Mengen, Temperaturen, Zeiten).
+- Erfahrungen, Fehler, Tipps & Hacks.
 
 **SOPs:**
-- Ziel: Klarheit & Wiederholbarkeit
-- Inklusive Mermaid-Diagramm des Ablaufs
+- Ziel: Klarheit & Wiederholbarkeit inkl. Mermaid-Diagramm.
 
 **Node-Tags:**
 - Jede Node braucht das Tag (z.B. #proto-atomic) direkt UNTER der Überschrift.`;
+
+    function copyPrompt(type) {
+        const textToCopy = type === 'scan' ? SCAN_PROMPT : FIX_PROMPT;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const status = document.getElementById('promptStatus');
+            status.innerText = type === 'scan' ? "Scan-Prompt kopiert! Ab zu ChatGPT." : "Korrektur-Prompt kopiert! Sag ChatGPT, es soll das Format fixen.";
+            setTimeout(() => status.innerText = "", 4000);
+        });
+    }
 
     function parseLog() {
         const text = document.getElementById('rawInput').value;
@@ -77,10 +156,10 @@
         let currentType = 'Proto';
 
         lines.forEach(line => {
-            if (line.includes('## Poetry')) currentType = 'Poetry';
-            else if (line.includes('## Proto-Atomic')) currentType = 'Proto';
-            else if (line.includes('## SOPs') || line.includes('Prozesse')) currentType = 'SOP';
-            else if (line.includes('Rezept')) currentType = 'Rezept';
+            if (line.toLowerCase().includes('## poetry')) currentType = 'Poetry';
+            else if (line.toLowerCase().includes('## proto-atomic')) currentType = 'Proto';
+            else if (line.toLowerCase().includes('sop') || line.toLowerCase().includes('prozesse')) currentType = 'SOP';
+            else if (line.toLowerCase().includes('rezept')) currentType = 'Rezept';
             
             if (line.trim().startsWith('- ')) {
                 let content = line.replace('- ', '').trim();
@@ -117,7 +196,7 @@
                         <option value="SOP" ${item.type === 'SOP' ? 'selected' : ''}>SOP</option>
                         <option value="Rezept" ${item.type === 'Rezept' ? 'selected' : ''}>Rezept</option>
                     </select>
-                    <input type="text" style="flex-grow:1" value="${item.title}" placeholder="Titel" oninput="updateItem(${index}, 'title', this.value)">
+                    <input type="text" style="flex-grow:1" value="${item.title}" oninput="updateItem(${index}, 'title', this.value)">
                     <button class="delete" onclick="removeItem(${index})">Löschen</button>
                 </div>
                 <textarea class="content-edit" oninput="updateItem(${index}, 'text', this.value)">${item.text}</textarea>
@@ -147,7 +226,7 @@
             } else if (item.type === 'SOP') {
                 output += `## Standard Operating Procedure (SOP) [${item.title}]\n#sop\n${item.text}\n\n### Ablauf-Diagramm\n\n\`\`\`mermaid\nflowchart TD\nA[Start] --> B[Schritt 1]\n\`\`\`\n\n`;
             } else if (item.type === 'Rezept') {
-                output += `## Rezept: [${item.title}]\n#rezept\n**Beschreibung & Kontext:** ${item.text}\n\n**Zutaten:**\n- \n\n**Zubereitung:**\n1. \n\n**Meine Erfahrungen & Anpassungen:**\n- ✅ Was gut war:\n- ❌ Fehler:\n\n**Lagerung:** \n\n`;
+                output += `## Rezept: [${item.title}]\n#rezept\n**Beschreibung & Kontext:** ${item.text}\n\n**Zutaten:**\n- \n\n**Zubereitung:**\n1. \n\n**Meine Erfahrungen & Anpassungen:**\n- ✅ Was gut war:\n- ❌ Fehler:\n\n`;
             }
         });
 
@@ -155,7 +234,7 @@
 
         navigator.clipboard.writeText(output).then(() => {
             const status = document.getElementById('copyStatus');
-            status.innerText = "Prompt inkl. Regeln kopiert! Ab zu ChatGPT.";
+            status.innerText = "Finaler Prompt kopiert!";
             setTimeout(() => status.innerText = "", 4000);
         });
     }
