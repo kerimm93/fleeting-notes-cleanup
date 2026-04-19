@@ -366,6 +366,23 @@ Mach mir aus den folgenden Kandidaten einzelne, eigenständige Markdown-Notizen 
 - Wenn du keine Dateien direkt erzeugen kannst, gib jede Datei separat in einem eigenen Markdown-Codeblock aus.
 - Nicht alles in eine einzige Sammeldatei schreiben.
 
+=== AUSGABEZWANG: DATEIEN, KEINE CHAT-ANTWORT ===
+- Antworte NICHT mit einer erklärenden Chat-Nachricht.
+- Schreibe KEINE Analyse.
+- Schreibe KEINE Zusammenfassung.
+- Schreibe KEINE Einleitung.
+- Schreibe KEIN Fazit.
+- Gib ausschließlich die erzeugten Markdown-Dateien aus.
+- Wenn du echte Dateien erzeugen kannst, erzeuge mehrere einzelne .md-Dateien.
+- Wenn du keine echten Dateien erzeugen kannst, gib jede Markdown-Datei separat als eigenen Datei-Block aus.
+- Jede Datei beginnt mit ---FILE--- und FILENAME: dateiname.md.
+- Danach folgt ausschließlich der Inhalt dieser Datei in einem eigenen Markdown-Codeblock.
+- Keine Sammeldatei.
+- Keine ZIP-Datei.
+- Kein Archiv.
+- Kein Bundle.
+- Keine Prosa außerhalb der Datei-Blöcke.
+
 === DATEINAMEN UND QUERVERWEISE ===
 - Jede Notiz braucht einen eindeutigen Dateinamen.
 - Der Dateiname steht explizit über der jeweiligen Notiz.
@@ -428,23 +445,36 @@ SOPs / Prozesse / Workflows:
 
 SOP-Kandidaten:
 - Als SOP-Entwurf oder Prüfmaterial behandeln.
+- YAML-Tag: sop-kandidat
+- Node-Tag direkt unter der Überschrift: #sop_candidate
+- Nicht #proto-atomic verwenden.
+- Nicht #sop verwenden, solange es keine finale SOP ist.
 - Nicht als fertige SOP ausgeben, außer Trigger + mindestens zwei konkrete Schritte + Wiederholungsanspruch sind klar erfüllt.
 - Keine Mermaid-Pflicht.
 - Nicht automatisch wie finale SOP behandeln.
 
 Systembeobachtungen:
 - Als Systembeobachtung oder Reflexionsnotiz ausgeben.
+- YAML-Tag: systembeobachtung
+- Node-Tag direkt unter der Überschrift: #system_observation
+- Nicht #sop verwenden.
 - Nicht in SOP umwandeln.
 - Nicht in Handlungsschritte zwingen.
 
 Heuristiken / implizite Regeln:
 - Als implizite Regel / handlungsleitendes Prinzip ausgeben.
+- YAML-Tag: heuristik
+- Node-Tag direkt unter der Überschrift: #heuristic
+- Nicht #sop verwenden.
 - Nicht automatisch zur SOP machen.
 - Keine Prozessschritte erfinden.
 
 Zitate / Textstellen:
+- YAML-Tag: zitat
+- Node-Tag direkt unter der Überschrift: #quote
 - Wortgetreu erhalten.
 - Nicht paraphrasieren.
+- Nicht #poetry_freewriting verwenden, außer es handelt sich ausdrücklich um Poetry/Prosa-Freewriting.
 - Quelle/Hinweis erhalten, wenn vorhanden.
 
 Rezepte:
@@ -512,12 +542,41 @@ C --> D[Ergebnis oder offene Stelle]
 \`\`\`
 \`\`\`\`
 
+---FILE---
+FILENAME: projektchat-mit-readme-update-beginnen.md
+
+\`\`\`\`markdown
+---
+tags:
+  - zettelkasten
+  - sop-kandidat
+---
+
+# Projektchat mit README-Update beginnen
+#sop_candidate
+
+> ⚠️ SOP-Kandidat – noch nicht vollständig ausgearbeitet.
+
+Kurze Beschreibung des potenziellen Workflows und der erwarteten Wirkung.
+
+## Status
+
+Entwurf / in Prüfung.
+
+## Offene Fragen
+
+- Welcher Trigger startet den Ablauf genau?
+- Welche mindestens zwei konkreten Schritte sind belastbar?
+- Ist der Wiederholungsanspruch bereits ausreichend belegt?
+\`\`\`\`
+
 Wichtig:
 - Jede Datei separat ausgeben.
 - Keine ZIP-Datei.
 - Keine Sammeldatei.
 - Keine Dateinamen in Querverweisen mit .md-Endung.
 - SOP-Dateien enthalten immer einen Mermaid-Abschnitt „## Ablauf-Diagramm“.
+- SOP-Kandidaten sind keine finalen SOP-Dateien und enthalten kein verpflichtendes Mermaid-Diagramm.
 
 # Zu verarbeitende Kandidaten
 
