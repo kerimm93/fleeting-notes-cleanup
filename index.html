@@ -250,55 +250,131 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
         ];
 
         let output = `=== ROLLE ===
-Du bist mein Obsidian-Zettelkasten-Assistent.
+Du bist mein Obsidian-Zettelkasten-Assistent und Markdown-Datei-Generator.
 
 === AUFGABE ===
-Mach mir aus diesen Kandidaten eigenständige Markdown-Notizen mit sinnvollen Querverweisen.
+Mach mir aus den folgenden Kandidaten einzelne, eigenständige Markdown-Notizen für Obsidian.
 
-=== WICHTIG: DATEINAMEN UND QUERVERWEISE ===
+=== OUTPUT: EINZELNE MARKDOWN-DATEIEN, KEIN ZIP ===
+- Erstelle KEINE ZIP-Datei.
+- Erstelle KEIN Archiv.
+- Erstelle KEIN Bundle.
+- Erstelle KEINE Sammeldatei.
+- Gib die Notizen als einzelne Markdown-Dateien aus.
+- Jede Notiz braucht einen eigenen Dateinamen.
+- Wenn du Dateien direkt erzeugen kannst, erzeuge einzelne .md-Dateien.
+- Wenn du keine Dateien direkt erzeugen kannst, gib jede Datei separat in einem eigenen Markdown-Codeblock aus.
+- Nicht alles in eine einzige Sammeldatei schreiben.
+
+=== DATEINAMEN UND QUERVERWEISE ===
 - Jede Notiz braucht einen eindeutigen Dateinamen.
 - Der Dateiname steht explizit über der jeweiligen Notiz.
-- Querverweise müssen in doppelten eckigen Klammern geschrieben werden: [[dateiname]]
-- In den Querverweisen steht IMMER der Dateiname der Zielnotiz.
-- In den Querverweisen steht NICHT automatisch der Titel der Notiz.
-- Die Markdown-Endung .md wird in Querverweisen NIE mitgeschrieben.
+- Verwende kebab-case.
+- Keine Doppelpunkte.
+- Keine Sonderzeichen außer Bindestrich.
+- Die Datei selbst darf .md heißen.
+- In Obsidian-Querverweisen wird die Endung .md aber NIE mitgeschrieben.
+- Querverweise müssen so geschrieben werden: [[dateiname]]
+- In den doppelten Klammern steht IMMER der Dateiname der Zielnotiz.
+- Dort steht NICHT automatisch der Titel der Notiz.
 - Beispiel richtig: [[daily-log-review-workflow]]
 - Beispiel falsch: [[Daily Log Review Workflow.md]]
 - Beispiel falsch: [[Daily Log Review Workflow]], wenn der tatsächliche Dateiname daily-log-review-workflow lautet.
 
-=== DATEINAMEN ===
-- Verwende kebab-case.
-- Keine Sonderzeichen.
-- Keine Doppelpunkte.
-- Keine Markdown-Endung im Link.
-- Dateinamen sollen kurz, eindeutig und Obsidian-tauglich sein.
+=== TAGGING / NODE-TAGS ===
+Übernimm die Logik aus dem GPT-Prompt:
+- Jede Notiz braucht passende Tags.
+- Jede Notiz braucht direkt unter der Überschrift einen klaren Node-Tag.
+- Beispiele:
+  - #proto-atomic
+  - #poetry_freewriting
+  - #sop
+  - #rezept
+- Tags sollen zusätzlich in YAML-Frontmatter erscheinen.
+- Frontmatter enthält mindestens:
+  ---
+  tags:
+    - zettelkasten
+    - [passender Typ]
+  ---
 
-=== OUTPUT-FORMAT ===
-Für jede Notiz:
+=== REGELN NACH TYP ===
+Poetry / Prosa Freewriting:
+- Ausschließlich wortwörtlich aus meinen Formulierungen übernehmen.
+- Nichts ergänzen.
+- Nichts umformulieren.
+- Nichts interpretieren.
+- Als eigene Markdown-Datei ausgeben, wenn es als eigenständiger Text sinnvoll ist.
+- Node-Tag direkt unter der Überschrift: #poetry_freewriting
 
----NOTE---
-FILENAME: beispiel-dateiname
+Proto-Atomic Notes:
+- Dürfen synthetisiert werden.
+- Nah an den Originalworten bleiben.
+- Eine Notiz soll eine klar erkennbare Kernaussage haben.
+- Sinnvolle Querverweise zu anderen erzeugten Notizen setzen.
+- Node-Tag direkt unter der Überschrift: #proto-atomic
+
+SOPs / Prozesse / Workflows:
+- Ziel: Klarheit und Wiederholbarkeit.
+- Schritte klar strukturieren.
+- Wenn sinnvoll, ein Mermaid-Diagramm ergänzen.
+- Node-Tag direkt unter der Überschrift: #sop
+
+Rezepte:
+- So detailliert wie möglich.
+- Mengen, Temperaturen, Zeiten, Erfahrungen, Fehler, Tipps und Hacks übernehmen, wenn vorhanden.
+- Nicht raten.
+- Fehlende Angaben als offen markieren.
+- Node-Tag direkt unter der Überschrift: #rezept
+
+=== ALLGEMEINE REGELN ===
+- Keine erfundenen Fakten ergänzen.
+- Unsicherheiten markieren.
+- Sehr ähnliche Kandidaten dürfen zusammengeführt werden, wenn sie offensichtlich dieselbe Notiz ergeben.
+- Erstelle nur sinnvolle Querverweise, kein Link-Spam.
+- Querverweise nur auf Notizen setzen, deren Dateiname du selbst im Output definiert hast.
+- Wenn du eine Notiz verlinkst, muss diese Zielnotiz auch tatsächlich im Output existieren.
+
+=== AUSGABEFORMAT ===
+Wenn Dateien nicht direkt erzeugt werden können, verwende dieses Format:
+
+---FILE---
+FILENAME: beispiel-dateiname.md
 
 \`\`\`markdown
 ---
 tags:
   - zettelkasten
+  - proto-atomic
 ---
 
 # Titel der Notiz
+#proto-atomic
 
-Inhalt der Notiz mit sinnvollen [[querverweisen]].
+Inhalt der Notiz mit sinnvollen [[anderen-dateinamen]].
 \`\`\`
 
-=== REGELN ===
-* Erstelle nur sinnvolle Querverweise, kein Link-Spam.
-* Fasse sehr ähnliche Kandidaten zusammen, wenn sie offensichtlich dieselbe Notiz ergeben.
-* Bewahre bei Poetry/Prosa wortwörtliche Formulierungen.
-* Bei SOPs/Workflows darfst du strukturieren und Schritte klarer machen.
-* Bei Proto-Atomic Notes darfst du synthetisieren, aber nah am Ausgangsmaterial bleiben.
-* Bei Rezepten möglichst konkret bleiben.
-* Keine erfundenen Fakten ergänzen.
-* Unsicherheiten markieren.
+---FILE---
+FILENAME: zweite-notiz.md
+
+\`\`\`markdown
+---
+tags:
+  - zettelkasten
+  - sop
+---
+
+# Titel der zweiten Notiz
+#sop
+
+Inhalt...
+\`\`\`
+
+Wichtig:
+- Jede Datei separat ausgeben.
+- Keine ZIP-Datei.
+- Keine Sammeldatei.
+- Keine Dateinamen in Querverweisen mit .md-Endung.
 
 # Zu verarbeitende Kandidaten
 
