@@ -15,6 +15,10 @@
         .card-Poetry { border-left-color: #ff79c6; }
         .card-Proto { border-left-color: #8be9fd; }
         .card-SOP { border-left-color: #50fa7b; }
+        .card-SOPCandidate { border-left-color: #7df9ff; }
+        .card-SystemObservation { border-left-color: #bd93f9; }
+        .card-Heuristic { border-left-color: #f1fa8c; }
+        .card-Quote { border-left-color: #ff5555; }
         .card-Rezept { border-left-color: #ffb86c; }
         .controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
         select, input { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #3d3d3d; color: white; }
@@ -158,7 +162,62 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
         logItems = [];
         let currentType = 'Proto';
 
-        lines.forEach(line => {
+        const cleanQuotedValue = (value) => value.replace(/^["“”„'\s]+|["“”„'\s]+$/g, '').trim();
+        const mapScannerCategory = (category) => {
+            const normalized = (category || '').trim().toLowerCase();
+            const categoryMap = {
+                'proto-atomic note': 'Proto',
+                'sop-kandidat': 'SOPCandidate',
+                'systembeobachtung': 'SystemObservation',
+                'wiederholendes muster': 'SystemObservation',
+                'heuristik / implizite regel': 'Heuristic',
+                'prozess / heuristik': 'Heuristic',
+                'poetry / prosa freewriting': 'Poetry',
+                'zitat / textstelle': 'Quote',
+                'rezept': 'Rezept'
+            };
+            return categoryMap[normalized] || 'Proto';
+        };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const scannerHeader = line.match(/^📌\s*\[(.*?)\]\s*\|\s*Konfidenz:\s*(.+)$/i);
+            if (scannerHeader) {
+                const originalCategory = scannerHeader[1].trim();
+                const confidence = scannerHeader[2].trim();
+                const scannerItem = {
+                    id: Date.now() + Math.random(),
+                    type: mapScannerCategory(originalCategory),
+                    title: "Neuer Eintrag",
+                    text: "",
+                    originalCategory,
+                    confidence,
+                    hint: "",
+                    nextStep: ""
+                };
+
+                for (i = i + 1; i < lines.length; i++) {
+                    const scannerLine = lines[i].trim();
+                    if (!scannerLine) continue;
+                    if (scannerLine.startsWith('📌 ')) {
+                        i--;
+                        break;
+                    }
+                    if (/^Text\s*:/i.test(scannerLine)) {
+                        scannerItem.text = cleanQuotedValue(scannerLine.replace(/^Text\s*:\s*/i, ''));
+                    } else if (/^Titel-Kandidat\s*:/i.test(scannerLine)) {
+                        scannerItem.title = cleanQuotedValue(scannerLine.replace(/^Titel-Kandidat\s*:\s*/i, '')) || "Neuer Eintrag";
+                    } else if (/^Hinweis\s*:/i.test(scannerLine)) {
+                        scannerItem.hint = cleanQuotedValue(scannerLine.replace(/^Hinweis\s*:\s*/i, ''));
+                    } else if (/^Nächster Schritt\s*:/i.test(scannerLine)) {
+                        scannerItem.nextStep = cleanQuotedValue(scannerLine.replace(/^Nächster Schritt\s*:\s*/i, ''));
+                    }
+                }
+
+                logItems.push(scannerItem);
+                continue;
+            }
+
             if (line.toLowerCase().includes('## poetry')) currentType = 'Poetry';
             else if (line.toLowerCase().includes('## proto-atomic')) currentType = 'Proto';
             else if (line.toLowerCase().includes('sop') || line.toLowerCase().includes('prozesse')) currentType = 'SOP';
@@ -181,7 +240,7 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
                     text: content
                 });
             }
-        });
+        }
         renderBoard();
     }
 
@@ -191,17 +250,29 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
         logItems.forEach((item, index) => {
             const card = document.createElement('div');
             card.className = `card card-${item.type}`;
+            const metaLines = [];
+            if (item.confidence) metaLines.push(`Konfidenz: ${item.confidence}`);
+            if (item.hint) metaLines.push(`Hinweis: ${item.hint}`);
+            if (item.nextStep) metaLines.push(`Nächster Schritt: ${item.nextStep}`);
+            const metaHtml = metaLines.length > 0
+                ? `<div style="font-size:0.85em;opacity:0.8;margin:6px 0 2px 0;">${metaLines.join('<br>')}</div>`
+                : '';
             card.innerHTML = `
                 <div class="controls">
                     <select onchange="updateItem(${index}, 'type', this.value); renderBoard();">
                         <option value="Poetry" ${item.type === 'Poetry' ? 'selected' : ''}>Poetry</option>
-                        <option value="Proto" ${item.type === 'Proto' ? 'selected' : ''}>Proto-Note</option>
+                        <option value="Proto" ${item.type === 'Proto' ? 'selected' : ''}>Proto</option>
                         <option value="SOP" ${item.type === 'SOP' ? 'selected' : ''}>SOP</option>
+                        <option value="SOPCandidate" ${item.type === 'SOPCandidate' ? 'selected' : ''}>SOP-Kandidat</option>
+                        <option value="SystemObservation" ${item.type === 'SystemObservation' ? 'selected' : ''}>Systembeobachtung</option>
+                        <option value="Heuristic" ${item.type === 'Heuristic' ? 'selected' : ''}>Heuristik</option>
+                        <option value="Quote" ${item.type === 'Quote' ? 'selected' : ''}>Zitat / Textstelle</option>
                         <option value="Rezept" ${item.type === 'Rezept' ? 'selected' : ''}>Rezept</option>
                     </select>
                     <input type="text" style="flex-grow:1" value="${item.title}" oninput="updateItem(${index}, 'title', this.value)">
                     <button class="delete" onclick="removeItem(${index})">Löschen</button>
                 </div>
+                ${metaHtml}
                 <textarea class="content-edit" oninput="updateItem(${index}, 'text', this.value)">${item.text}</textarea>
             `;
             board.appendChild(card);
@@ -224,16 +295,33 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
 
     function buildGptPrompt() {
         let output = "Bitte beachte dabei\n\n# 📎 Zu extrahierende Notizen\n\n";
+        const buildItemMeta = (item) => {
+            const meta = [];
+            if (item.originalCategory) meta.push(`Original-Kategorie: ${item.originalCategory}`);
+            if (item.confidence) meta.push(`Konfidenz: ${item.confidence}`);
+            if (item.hint) meta.push(`Hinweis: ${item.hint}`);
+            if (item.nextStep) meta.push(`Nächster Schritt: ${item.nextStep}`);
+            return meta.length ? `${meta.join('\n')}\n` : '';
+        };
         
         logItems.forEach(item => {
+            const itemMeta = buildItemMeta(item);
             if (item.type === 'Poetry') {
-                output += `## Poetry Freewriting\n#poetry_freewriting\n${item.text}\n\n`;
+                output += `## Poetry Freewriting\n#poetry_freewriting\n${itemMeta}${item.text}\n\n`;
             } else if (item.type === 'Proto') {
-                output += `## Proto-Atomic Note [${item.title}]\n#proto-atomic\n${item.text}\n\n`;
+                output += `## Proto-Atomic Note [${item.title}]\n#proto-atomic\n${itemMeta}${item.text}\n\n`;
             } else if (item.type === 'SOP') {
-                output += `## Standard Operating Procedure (SOP) [${item.title}]\n#sop\n${item.text}\n\n### Ablauf-Diagramm\n\n\`\`\`mermaid\nflowchart TD\nA[Start] --> B[Schritt 1]\n\`\`\`\n\n`;
+                output += `## Standard Operating Procedure (SOP) [${item.title}]\n#sop\n${itemMeta}${item.text}\n\n### Ablauf-Diagramm\n\n\`\`\`mermaid\nflowchart TD\nA[Start] --> B[Schritt 1]\n\`\`\`\n\n`;
+            } else if (item.type === 'SOPCandidate') {
+                output += `## SOP-Kandidat / SOP-Entwurf [${item.title}]\n#sop_candidate\n${itemMeta}${item.text}\n\nHinweis: Als SOP-Kandidat behandeln. Nicht automatisch als finale SOP ausgeben. Kein automatisches Mermaid-Diagramm.\n\n`;
+            } else if (item.type === 'SystemObservation') {
+                output += `## Systembeobachtung [${item.title}]\n#system_observation\n${itemMeta}${item.text}\n\nHinweis: Als Reflexionsnotiz/Systembeobachtung behandeln, nicht als SOP.\n\n`;
+            } else if (item.type === 'Heuristic') {
+                output += `## Heuristik / implizite Regel [${item.title}]\n#heuristic\n${itemMeta}${item.text}\n\nHinweis: Als implizite Regel ausgeben, nicht automatisch zu SOP/Prozessschritten machen.\n\n`;
+            } else if (item.type === 'Quote') {
+                output += `## Zitat / Textstelle [${item.title}]\n#quote\n${itemMeta}${item.text}\n\nHinweis: Wortgetreu erhalten und nicht umformulieren.\n\n`;
             } else if (item.type === 'Rezept') {
-                output += `## Rezept: [${item.title}]\n#rezept\n**Beschreibung & Kontext:** ${item.text}\n\n**Zutaten:**\n- \n\n**Zubereitung:**\n1. \n\n**Meine Erfahrungen & Anpassungen:**\n- ✅ Was gut war:\n- ❌ Fehler:\n\n`;
+                output += `## Rezept: [${item.title}]\n#rezept\n${itemMeta}**Beschreibung & Kontext:** ${item.text}\n\n**Zutaten:**\n- \n\n**Zubereitung:**\n1. \n\n**Meine Erfahrungen & Anpassungen:**\n- ✅ Was gut war:\n- ❌ Fehler:\n\n`;
             }
         });
 
@@ -242,10 +330,22 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
     }
 
     function buildClaudePrompt() {
+        const buildItemMeta = (item) => {
+            const meta = [];
+            if (item.originalCategory) meta.push(`Original-Kategorie: ${item.originalCategory}`);
+            if (item.confidence) meta.push(`Konfidenz: ${item.confidence}`);
+            if (item.hint) meta.push(`Hinweis: ${item.hint}`);
+            if (item.nextStep) meta.push(`Nächster Schritt: ${item.nextStep}`);
+            return meta.length ? `${meta.join('\n')}\n\n` : '';
+        };
         const sectionConfigs = [
             { type: 'Poetry', label: 'Poetry' },
             { type: 'Proto', label: 'Proto-Atomic Notes' },
             { type: 'SOP', label: 'SOPs / Workflows' },
+            { type: 'SOPCandidate', label: 'SOP-Kandidaten' },
+            { type: 'SystemObservation', label: 'Systembeobachtungen' },
+            { type: 'Heuristic', label: 'Heuristiken / implizite Regeln' },
+            { type: 'Quote', label: 'Zitate / Textstellen' },
             { type: 'Rezept', label: 'Rezepte' }
         ];
 
@@ -265,6 +365,23 @@ Mach mir aus den folgenden Kandidaten einzelne, eigenständige Markdown-Notizen 
 - Wenn du Dateien direkt erzeugen kannst, erzeuge einzelne .md-Dateien.
 - Wenn du keine Dateien direkt erzeugen kannst, gib jede Datei separat in einem eigenen Markdown-Codeblock aus.
 - Nicht alles in eine einzige Sammeldatei schreiben.
+
+=== AUSGABEZWANG: DATEIEN, KEINE CHAT-ANTWORT ===
+- Antworte NICHT mit einer erklärenden Chat-Nachricht.
+- Schreibe KEINE Analyse.
+- Schreibe KEINE Zusammenfassung.
+- Schreibe KEINE Einleitung.
+- Schreibe KEIN Fazit.
+- Gib ausschließlich die erzeugten Markdown-Dateien aus.
+- Wenn du echte Dateien erzeugen kannst, erzeuge mehrere einzelne .md-Dateien.
+- Wenn du keine echten Dateien erzeugen kannst, gib jede Markdown-Datei separat als eigenen Datei-Block aus.
+- Jede Datei beginnt mit ---FILE--- und FILENAME: dateiname.md.
+- Danach folgt ausschließlich der Inhalt dieser Datei in einem eigenen Markdown-Codeblock.
+- Keine Sammeldatei.
+- Keine ZIP-Datei.
+- Kein Archiv.
+- Kein Bundle.
+- Keine Prosa außerhalb der Datei-Blöcke.
 
 === DATEINAMEN UND QUERVERWEISE ===
 - Jede Notiz braucht einen eindeutigen Dateinamen.
@@ -317,6 +434,7 @@ Proto-Atomic Notes:
 SOPs / Prozesse / Workflows:
 - Ziel: Klarheit und Wiederholbarkeit.
 - Schritte klar strukturieren.
+- Diese finale SOP-Behandlung gilt NUR für echte finale SOPs (type === 'SOP').
 - Jede SOP-/Workflow-Notiz braucht einen Abschnitt „## Ablauf-Diagramm“.
 - Darunter muss ein Mermaid-Codeblock stehen.
 - Verwende bevorzugt flowchart TD.
@@ -324,6 +442,40 @@ SOPs / Prozesse / Workflows:
 - Wenn der Ablauf unvollständig ist, erstelle ein vorsichtiges Minimaldiagramm aus den belegten Schritten und markiere offene Stellen als „offen“.
 - Keine Schritte erfinden.
 - Node-Tag direkt unter der Überschrift: #sop
+
+SOP-Kandidaten:
+- Als SOP-Entwurf oder Prüfmaterial behandeln.
+- YAML-Tag: sop-kandidat
+- Node-Tag direkt unter der Überschrift: #sop_candidate
+- Nicht #proto-atomic verwenden.
+- Nicht #sop verwenden, solange es keine finale SOP ist.
+- Nicht als fertige SOP ausgeben, außer Trigger + mindestens zwei konkrete Schritte + Wiederholungsanspruch sind klar erfüllt.
+- Keine Mermaid-Pflicht.
+- Nicht automatisch wie finale SOP behandeln.
+
+Systembeobachtungen:
+- Als Systembeobachtung oder Reflexionsnotiz ausgeben.
+- YAML-Tag: systembeobachtung
+- Node-Tag direkt unter der Überschrift: #system_observation
+- Nicht #sop verwenden.
+- Nicht in SOP umwandeln.
+- Nicht in Handlungsschritte zwingen.
+
+Heuristiken / implizite Regeln:
+- Als implizite Regel / handlungsleitendes Prinzip ausgeben.
+- YAML-Tag: heuristik
+- Node-Tag direkt unter der Überschrift: #heuristic
+- Nicht #sop verwenden.
+- Nicht automatisch zur SOP machen.
+- Keine Prozessschritte erfinden.
+
+Zitate / Textstellen:
+- YAML-Tag: zitat
+- Node-Tag direkt unter der Überschrift: #quote
+- Wortgetreu erhalten.
+- Nicht paraphrasieren.
+- Nicht #poetry_freewriting verwenden, außer es handelt sich ausdrücklich um Poetry/Prosa-Freewriting.
+- Quelle/Hinweis erhalten, wenn vorhanden.
 
 Rezepte:
 - So detailliert wie möglich.
@@ -390,12 +542,41 @@ C --> D[Ergebnis oder offene Stelle]
 \`\`\`
 \`\`\`\`
 
+---FILE---
+FILENAME: projektchat-mit-readme-update-beginnen.md
+
+\`\`\`\`markdown
+---
+tags:
+  - zettelkasten
+  - sop-kandidat
+---
+
+# Projektchat mit README-Update beginnen
+#sop_candidate
+
+> ⚠️ SOP-Kandidat – noch nicht vollständig ausgearbeitet.
+
+Kurze Beschreibung des potenziellen Workflows und der erwarteten Wirkung.
+
+## Status
+
+Entwurf / in Prüfung.
+
+## Offene Fragen
+
+- Welcher Trigger startet den Ablauf genau?
+- Welche mindestens zwei konkreten Schritte sind belastbar?
+- Ist der Wiederholungsanspruch bereits ausreichend belegt?
+\`\`\`\`
+
 Wichtig:
 - Jede Datei separat ausgeben.
 - Keine ZIP-Datei.
 - Keine Sammeldatei.
 - Keine Dateinamen in Querverweisen mit .md-Endung.
 - SOP-Dateien enthalten immer einen Mermaid-Abschnitt „## Ablauf-Diagramm“.
+- SOP-Kandidaten sind keine finalen SOP-Dateien und enthalten kein verpflichtendes Mermaid-Diagramm.
 
 # Zu verarbeitende Kandidaten
 
@@ -411,7 +592,7 @@ Wichtig:
             }
 
             items.forEach(item => {
-                output += `### ${item.title || 'Ohne Titel'}\n\n${item.text}\n\n`;
+                output += `### ${item.title || 'Ohne Titel'}\n\n${buildItemMeta(item)}${item.text}\n\n`;
             });
         });
 
