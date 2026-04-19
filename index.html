@@ -317,7 +317,12 @@ Proto-Atomic Notes:
 SOPs / Prozesse / Workflows:
 - Ziel: Klarheit und Wiederholbarkeit.
 - Schritte klar strukturieren.
-- Wenn sinnvoll, ein Mermaid-Diagramm ergänzen.
+- Jede SOP-/Workflow-Notiz braucht einen Abschnitt „## Ablauf-Diagramm“.
+- Darunter muss ein Mermaid-Codeblock stehen.
+- Verwende bevorzugt flowchart TD.
+- Das Diagramm soll den im Kandidaten beschriebenen Ablauf sichtbar machen.
+- Wenn der Ablauf unvollständig ist, erstelle ein vorsichtiges Minimaldiagramm aus den belegten Schritten und markiere offene Stellen als „offen“.
+- Keine Schritte erfinden.
 - Node-Tag direkt unter der Überschrift: #sop
 
 Rezepte:
@@ -355,7 +360,7 @@ Inhalt der Notiz mit sinnvollen [[anderen-dateinamen]].
 \`\`\`
 
 ---FILE---
-FILENAME: zweite-notiz.md
+FILENAME: beispiel-workflow.md
 
 \`\`\`markdown
 ---
@@ -364,10 +369,25 @@ tags:
   - sop
 ---
 
-# Titel der zweiten Notiz
+# Beispiel Workflow
 #sop
 
-Inhalt...
+Kurze Beschreibung des Workflows.
+
+## Schritte
+
+1. Erster belegter Schritt
+2. Zweiter belegter Schritt
+3. Offener Schritt, falls unklar
+
+## Ablauf-Diagramm
+
+\`\`\`mermaid
+flowchart TD
+A[Start] --> B[Erster Schritt]
+B --> C[Zweiter Schritt]
+C --> D[Ergebnis oder offene Stelle]
+\`\`\`
 \`\`\`
 
 Wichtig:
@@ -375,6 +395,7 @@ Wichtig:
 - Keine ZIP-Datei.
 - Keine Sammeldatei.
 - Keine Dateinamen in Querverweisen mit .md-Endung.
+- SOP-Dateien enthalten immer einen Mermaid-Abschnitt „## Ablauf-Diagramm“.
 
 # Zu verarbeitende Kandidaten
 
