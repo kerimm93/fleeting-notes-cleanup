@@ -57,7 +57,10 @@
     <div id="board"></div>
 
     <div id="exportArea" class="hidden actions">
-        <button onclick="generatePrompt()">🚀 2. Finalen Prompt + Regeln kopieren</button>
+        <div class="btn-group" style="justify-content: center;">
+            <button onclick="generatePrompt('claude')">🧠 Prompt für Claude kopieren</button>
+            <button class="secondary" onclick="generatePrompt('gpt')">🤖 Prompt für GPT kopieren</button>
+        </div>
         <div id="copyStatus" class="status-msg"></div>
     </div>
 </div>
@@ -203,7 +206,11 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
             `;
             board.appendChild(card);
         });
-        if(logItems.length > 0) document.getElementById('exportArea').classList.remove('hidden');
+        if (logItems.length > 0) {
+            document.getElementById('exportArea').classList.remove('hidden');
+        } else {
+            document.getElementById('exportArea').classList.add('hidden');
+        }
     }
 
     function updateItem(index, key, value) {
@@ -215,7 +222,7 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
         renderBoard();
     }
 
-    function generatePrompt() {
+    function buildGptPrompt() {
         let output = "Bitte beachte dabei\n\n# 📎 Zu extrahierende Notizen\n\n";
         
         logItems.forEach(item => {
@@ -231,10 +238,102 @@ Bitte korrigiere deine letzte Antwort entsprechend!`;
         });
 
         output += RULES_TEMPLATE;
+        return output;
+    }
+
+    function buildClaudePrompt() {
+        const sectionConfigs = [
+            { type: 'Poetry', label: 'Poetry' },
+            { type: 'Proto', label: 'Proto-Atomic Notes' },
+            { type: 'SOP', label: 'SOPs / Workflows' },
+            { type: 'Rezept', label: 'Rezepte' }
+        ];
+
+        let output = `=== ROLLE ===
+Du bist mein Obsidian-Zettelkasten-Assistent.
+
+=== AUFGABE ===
+Mach mir aus diesen Kandidaten eigenständige Markdown-Notizen mit sinnvollen Querverweisen.
+
+=== WICHTIG: DATEINAMEN UND QUERVERWEISE ===
+- Jede Notiz braucht einen eindeutigen Dateinamen.
+- Der Dateiname steht explizit über der jeweiligen Notiz.
+- Querverweise müssen in doppelten eckigen Klammern geschrieben werden: [[dateiname]]
+- In den Querverweisen steht IMMER der Dateiname der Zielnotiz.
+- In den Querverweisen steht NICHT automatisch der Titel der Notiz.
+- Die Markdown-Endung .md wird in Querverweisen NIE mitgeschrieben.
+- Beispiel richtig: [[daily-log-review-workflow]]
+- Beispiel falsch: [[Daily Log Review Workflow.md]]
+- Beispiel falsch: [[Daily Log Review Workflow]], wenn der tatsächliche Dateiname daily-log-review-workflow lautet.
+
+=== DATEINAMEN ===
+- Verwende kebab-case.
+- Keine Sonderzeichen.
+- Keine Doppelpunkte.
+- Keine Markdown-Endung im Link.
+- Dateinamen sollen kurz, eindeutig und Obsidian-tauglich sein.
+
+=== OUTPUT-FORMAT ===
+Für jede Notiz:
+
+---NOTE---
+FILENAME: beispiel-dateiname
+
+\`\`\`markdown
+---
+tags:
+  - zettelkasten
+---
+
+# Titel der Notiz
+
+Inhalt der Notiz mit sinnvollen [[querverweisen]].
+\`\`\`
+
+=== REGELN ===
+* Erstelle nur sinnvolle Querverweise, kein Link-Spam.
+* Fasse sehr ähnliche Kandidaten zusammen, wenn sie offensichtlich dieselbe Notiz ergeben.
+* Bewahre bei Poetry/Prosa wortwörtliche Formulierungen.
+* Bei SOPs/Workflows darfst du strukturieren und Schritte klarer machen.
+* Bei Proto-Atomic Notes darfst du synthetisieren, aber nah am Ausgangsmaterial bleiben.
+* Bei Rezepten möglichst konkret bleiben.
+* Keine erfundenen Fakten ergänzen.
+* Unsicherheiten markieren.
+
+# Zu verarbeitende Kandidaten
+
+`;
+
+        sectionConfigs.forEach(section => {
+            output += `## ${section.label}\n\n`;
+            const items = logItems.filter(item => item.type === section.type);
+
+            if (items.length === 0) {
+                output += '_Keine Einträge._\n\n';
+                return;
+            }
+
+            items.forEach(item => {
+                output += `### ${item.title || 'Ohne Titel'}\n\n${item.text}\n\n`;
+            });
+        });
+
+        return output;
+    }
+
+    function generatePrompt(target) {
+        let output = '';
+        const promptTarget = target === 'claude' ? 'claude' : 'gpt';
+
+        if (promptTarget === 'claude') {
+            output = buildClaudePrompt();
+        } else {
+            output = buildGptPrompt();
+        }
 
         navigator.clipboard.writeText(output).then(() => {
             const status = document.getElementById('copyStatus');
-            status.innerText = "Finaler Prompt kopiert!";
+            status.innerText = promptTarget === 'claude' ? "Claude-Prompt kopiert!" : "GPT-Prompt kopiert!";
             setTimeout(() => status.innerText = "", 4000);
         });
     }
